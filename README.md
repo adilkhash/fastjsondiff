@@ -240,7 +240,7 @@ print(f"{len(removed_fields)} fields removed")
 ## Requirements
 
 - Python 3.10+
-- Zig 0.11+ (for building from source)
+- Zig 0.15.2 (for building from source)
 
 ## License
 

@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2.2.0
+        with:
+          version: 0.15.2
+
+      - name: Build Zig library
+        working-directory: fastjsondiff/_zig
+        run: zig build
+
+      - name: Run Zig tests
+        working-directory: fastjsondiff/_zig
+        run: zig build test
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: pip install -e ".[test]"
+
+      - name: Run pytest
+        run: pytest

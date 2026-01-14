@@ -3,10 +3,9 @@ Data models for fastjsondiff results.
 
 This module defines the public-facing types returned by comparison operations.
 """
-
+import typing as t
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Iterator, Optional
 import json
 
 
@@ -33,13 +32,13 @@ class Difference:
     path: str
     """JSON path to the difference location (e.g., 'root.items[0].name')."""
 
-    old_value: Any = None
+    old_value: t.Any = None
     """Previous value (None for 'added' type)."""
 
-    new_value: Any = None
+    new_value: t.Any = None
     """New value (None for 'removed' type)."""
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, str]:
         """Serialize to dictionary."""
         result = {
             "type": self.type.value,
@@ -127,7 +126,7 @@ class DiffResult:
         """Number of differences found."""
         return len(self.differences)
 
-    def __iter__(self) -> Iterator[Difference]:
+    def __iter__(self) -> t.Iterator[Difference]:
         """Iterate over differences."""
         return iter(self.differences)
 
@@ -139,7 +138,7 @@ class DiffResult:
         """Get difference by index."""
         return self.differences[index]
 
-    def filter(self, diff_type: Optional[DiffType] = None) -> list[Difference]:
+    def filter(self, diff_type: DiffType | None = None) -> list[Difference]:
         """
         Filter differences by type.
 
@@ -161,7 +160,7 @@ class DiffResult:
             "metadata": self.metadata.to_dict(),
         }
 
-    def to_json(self, indent: Optional[int] = None) -> str:
+    def to_json(self, indent: int | None = None) -> str:
         """
         Serialize to JSON string.
 
@@ -188,9 +187,9 @@ class InvalidJsonError(ValueError):
         message: str,
         *,
         input_name: str = "unknown",
-        position: Optional[int] = None,
-        line: Optional[int] = None,
-        column: Optional[int] = None,
+        position: int | None = None,
+        line: int | None = None,
+        column: int | None = None,
     ):
         self.message = message
         self.input_name = input_name

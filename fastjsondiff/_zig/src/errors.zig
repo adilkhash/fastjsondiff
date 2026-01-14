@@ -31,7 +31,7 @@ pub fn getErrorMessage(code: c_int) [*:0]const u8 {
 }
 
 /// FFI export: Get error message for error code.
-pub export fn fjd_error_message(code: c_int) callconv(.C) [*:0]const u8 {
+pub export fn fjd_error_message(code: c_int) callconv(.c) [*:0]const u8 {
     return getErrorMessage(code);
 }
 

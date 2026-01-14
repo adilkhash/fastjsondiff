@@ -12,31 +12,31 @@ pub const PathBuilder = struct {
     pub fn init(allocator: std.mem.Allocator) PathBuilder {
         return .{
             .allocator = allocator,
-            .buffer = std.ArrayList(u8).init(allocator),
+            .buffer = .empty,
         };
     }
 
     pub fn deinit(self: *PathBuilder) void {
-        self.buffer.deinit();
+        self.buffer.deinit(self.allocator);
     }
 
     /// Start a new path from root.
     pub fn root(self: *PathBuilder) !void {
         self.buffer.clearRetainingCapacity();
-        try self.buffer.appendSlice("root");
+        try self.buffer.appendSlice(self.allocator, "root");
     }
 
     /// Append an object key using dot notation.
     pub fn appendKey(self: *PathBuilder, key: []const u8) !void {
-        try self.buffer.append('.');
-        try self.buffer.appendSlice(key);
+        try self.buffer.append(self.allocator, '.');
+        try self.buffer.appendSlice(self.allocator, key);
     }
 
     /// Append an array index using bracket notation.
     pub fn appendIndex(self: *PathBuilder, index: usize) !void {
-        try self.buffer.append('[');
-        try std.fmt.formatInt(index, 10, .lower, .{}, self.buffer.writer());
-        try self.buffer.append(']');
+        try self.buffer.append(self.allocator, '[');
+        try std.fmt.formatInt(index, 10, .lower, .{}, self.buffer.writer(self.allocator));
+        try self.buffer.append(self.allocator, ']');
     }
 
     /// Get the current path as a string.
@@ -67,8 +67,8 @@ pub const PathComponent = union(enum) {
 };
 
 pub fn parsePath(allocator: std.mem.Allocator, path: []const u8) !std.ArrayList(PathComponent) {
-    var components = std.ArrayList(PathComponent).init(allocator);
-    errdefer components.deinit();
+    var components: std.ArrayList(PathComponent) = .empty;
+    errdefer components.deinit(allocator);
 
     var i: usize = 0;
     var start: usize = 0;
@@ -78,12 +78,12 @@ pub fn parsePath(allocator: std.mem.Allocator, path: []const u8) !std.ArrayList(
 
         if (c == '.') {
             if (i > start) {
-                try components.append(.{ .key = path[start..i] });
+                try components.append(allocator, .{ .key = path[start..i] });
             }
             start = i + 1;
         } else if (c == '[') {
             if (i > start) {
-                try components.append(.{ .key = path[start..i] });
+                try components.append(allocator, .{ .key = path[start..i] });
             }
             // Find closing bracket
             const bracket_start = i + 1;
@@ -91,7 +91,7 @@ pub fn parsePath(allocator: std.mem.Allocator, path: []const u8) !std.ArrayList(
             if (i < path.len) {
                 const index_str = path[bracket_start..i];
                 const index = std.fmt.parseInt(usize, index_str, 10) catch 0;
-                try components.append(.{ .index = index });
+                try components.append(allocator, .{ .index = index });
             }
             start = i + 1;
         }
@@ -101,7 +101,7 @@ pub fn parsePath(allocator: std.mem.Allocator, path: []const u8) !std.ArrayList(
 
     // Handle remaining part
     if (start < path.len) {
-        try components.append(.{ .key = path[start..] });
+        try components.append(allocator, .{ .key = path[start..] });
     }
 
     return components;

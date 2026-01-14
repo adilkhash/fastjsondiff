@@ -36,10 +36,11 @@ pub fn isValidUtf8(bytes: []const u8) bool {
 
 /// Serialize a JSON value back to a string.
 /// Useful for storing old/new values in diff results.
-pub fn stringify(value: JsonValue, allocator: std.mem.Allocator) ![]const u8 {
-    var buffer = std.ArrayList(u8).init(allocator);
-    try std.json.stringify(value, .{}, buffer.writer());
-    return buffer.toOwnedSlice();
+pub fn stringify(json_value: JsonValue, allocator: std.mem.Allocator) ![]const u8 {
+    var aw: std.Io.Writer.Allocating = .init(allocator);
+    errdefer aw.deinit();
+    try std.json.Stringify.value(json_value, .{}, &aw.writer);
+    return aw.toOwnedSlice();
 }
 
 /// Get a string representation of a JSON value type.

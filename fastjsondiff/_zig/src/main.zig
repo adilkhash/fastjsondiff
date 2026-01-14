@@ -20,7 +20,7 @@ pub export fn fjd_compare(
     len_b: usize,
     options: *const FjdOptions,
     result_out: *?*FjdResult,
-) callconv(.C) c_int {
+) callconv(.c) c_int {
     _ = options; // Will use in future for array_match option
 
     // Create slices from pointers
@@ -87,7 +87,7 @@ pub export fn fjd_compare(
 }
 
 /// Get the number of differences in a result.
-pub export fn fjd_result_get_count(result: ?*const FjdResult) callconv(.C) usize {
+pub export fn fjd_result_get_count(result: ?*const FjdResult) callconv(.c) usize {
     if (result) |r| {
         return r.count();
     }
@@ -99,7 +99,7 @@ pub export fn fjd_result_get_diff(
     result: ?*FjdResult,
     index: usize,
     diff_out: *FjdDiff,
-) callconv(.C) c_int {
+) callconv(.c) c_int {
     if (result == null) {
         return ErrorCode.NULL_POINTER;
     }
@@ -117,7 +117,7 @@ pub export fn fjd_result_get_diff(
 pub export fn fjd_result_get_summary(
     result: ?*const FjdResult,
     summary_out: *FjdSummary,
-) callconv(.C) void {
+) callconv(.c) void {
     if (result) |r| {
         summary_out.* = r.summary;
     } else {
@@ -129,7 +129,7 @@ pub export fn fjd_result_get_summary(
 pub export fn fjd_result_get_metadata(
     result: ?*const FjdResult,
     metadata_out: *FjdMetadata,
-) callconv(.C) void {
+) callconv(.c) void {
     if (result) |r| {
         metadata_out.* = r.metadata;
     } else {
@@ -138,7 +138,7 @@ pub export fn fjd_result_get_metadata(
 }
 
 /// Free a result and all associated memory.
-pub export fn fjd_result_free(result: ?*FjdResult) callconv(.C) void {
+pub export fn fjd_result_free(result: ?*FjdResult) callconv(.c) void {
     if (result) |r| {
         r.deinit();
         memory.global_allocator.destroy(r);

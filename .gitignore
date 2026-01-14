@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+.eggs/
+*.manifest
+*.spec
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Zig build artifacts
+zig-cache/
+.zig-cache/
+zig-out/
+.zig-out/
+*.o
+*.a
+usage.py
+
+# Compiled shared libraries (keep in package for distribution)
+# fastjsondiff/*.so  # Uncomment if you want to ignore these
+# fastjsondiff/*.dll
+# fastjsondiff/*.dylib
+
+# OS
+.DS_Store
+Thumbs.db
+*.tmp
+
+# Environment
+.env
+.env.local
+*.local
+
+# Logs
+*.log
+
+# Poetry
+poetry.lock

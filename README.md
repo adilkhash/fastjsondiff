@@ -16,6 +16,12 @@ A high-performance Python library for comparing JSON payloads, powered by a Zig 
 pip install fastjsondiff-zig
 ```
 
+Or using [uv](https://docs.astral.sh/uv/):
+
+```bash
+uv add fastjsondiff-zig
+```
+
 ### Development Installation
 
 ```bash
@@ -30,6 +36,9 @@ cd ../..
 
 # Install in development mode
 pip install -e .
+
+# Or using uv
+uv pip install -e .
 ```
 
 ## Quick Start

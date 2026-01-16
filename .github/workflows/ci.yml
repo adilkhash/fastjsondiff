@@ -98,6 +98,24 @@ jobs:
       - name: Build wheel
         run: pipx run build --wheel
 
+      - name: Retag wheel with platform tag (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          pip install wheel
+          wheel tags --platform-tag=manylinux_2_17_x86_64 dist/*.whl --remove
+
+      - name: Retag wheel with platform tag (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          pip install wheel
+          wheel tags --platform-tag=macosx_11_0_arm64 dist/*.whl --remove
+
+      - name: Retag wheel with platform tag (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          pip install wheel
+          wheel tags --platform-tag=win_amd64 dist/*.whl --remove
+
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4
         with:

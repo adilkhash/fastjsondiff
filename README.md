@@ -13,14 +13,14 @@ A high-performance Python library for comparing JSON payloads, powered by a Zig 
 ## Installation
 
 ```bash
-pip install fastjsondiff
+pip install fastjsondiff-zig
 ```
 
 ### Development Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/fastjsondiff.git
+git clone https://github.com/adilkhash/fastjsondiff.git
 cd fastjsondiff
 
 # Build the Zig core

@@ -112,9 +112,11 @@ jobs:
 
       - name: Retag wheel with platform tag (Windows)
         if: runner.os == 'Windows'
+        shell: pwsh
         run: |
           pip install wheel
-          wheel tags --platform-tag=win_amd64 dist/*.whl --remove
+          $whl = Get-ChildItem dist/*.whl | Select-Object -First 1
+          wheel tags --platform-tag=win_amd64 $whl.FullName --remove
 
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4

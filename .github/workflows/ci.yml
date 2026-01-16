@@ -29,6 +29,18 @@ jobs:
         working-directory: fastjsondiff/_zig
         run: zig build
 
+      - name: Copy library to package directory (Linux)
+        if: runner.os == 'Linux'
+        run: cp fastjsondiff/_zig/zig-out/lib/libfastjsondiff_core.so fastjsondiff/
+
+      - name: Copy library to package directory (macOS)
+        if: runner.os == 'macOS'
+        run: cp fastjsondiff/_zig/zig-out/lib/libfastjsondiff_core.dylib fastjsondiff/
+
+      - name: Copy library to package directory (Windows)
+        if: runner.os == 'Windows'
+        run: copy fastjsondiff\_zig\zig-out\bin\fastjsondiff_core.dll fastjsondiff\
+
       - name: Run Zig tests
         working-directory: fastjsondiff/_zig
         run: zig build test
@@ -43,3 +55,78 @@ jobs:
 
       - name: Run pytest
         run: pytest
+
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2.2.0
+        with:
+          version: 0.15.2
+
+      - name: Build Zig library
+        working-directory: fastjsondiff/_zig
+        run: zig build
+
+      - name: Copy library to package directory (Linux)
+        if: runner.os == 'Linux'
+        run: cp fastjsondiff/_zig/zig-out/lib/libfastjsondiff_core.so fastjsondiff/
+
+      - name: Copy library to package directory (macOS)
+        if: runner.os == 'macOS'
+        run: cp fastjsondiff/_zig/zig-out/lib/libfastjsondiff_core.dylib fastjsondiff/
+
+      - name: Copy library to package directory (Windows)
+        if: runner.os == 'Windows'
+        run: copy fastjsondiff\_zig\zig-out\bin\fastjsondiff_core.dll fastjsondiff\
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: pip install build
+
+      - name: Build wheel
+        run: python -m build
+
+      - name: Verify library in wheel (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          unzip -l dist/*.whl | grep libfastjsondiff_core.so
+          echo "Library found in wheel"
+
+      - name: Verify library in wheel (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          unzip -l dist/*.whl | grep libfastjsondiff_core.dylib
+          echo "Library found in wheel"
+
+      - name: Verify library in wheel (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $wheel = Get-ChildItem dist/*.whl | Select-Object -First 1
+          $contents = python -c "import zipfile; print('\n'.join(zipfile.ZipFile('$($wheel.FullName)').namelist()))"
+          if ($contents -match "fastjsondiff_core.dll") {
+            Write-Host "Library found in wheel"
+          } else {
+            Write-Error "Library NOT found in wheel"
+            exit 1
+          }
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.os }}
+          path: dist/*.whl

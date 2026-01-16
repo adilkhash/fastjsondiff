@@ -58,7 +58,7 @@ jobs:
         run: pytest
 
   build_wheels:
-    name: Build wheels (${{ matrix.os }})
+    name: Build wheel (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -69,44 +69,40 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup QEMU (Linux only, for aarch64)
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2.2.0
+        with:
+          version: 0.15.2
+
+      - name: Build Zig library
+        working-directory: fastjsondiff/_zig
+        run: zig build -Doptimize=ReleaseFast
+
+      - name: Copy library to package directory (Linux)
         if: runner.os == 'Linux'
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
+        run: cp fastjsondiff/_zig/zig-out/lib/libfastjsondiff_core.so fastjsondiff/
 
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v3.3.1
-        env:
-          CIBW_BUILD: "cp311-* cp312-* cp313-* cp314-*"
-          CIBW_SKIP: "*-musllinux_*"
-          CIBW_ARCHS_LINUX: "x86_64 aarch64"
-          CIBW_ARCHS_MACOS: "x86_64 arm64"
-          CIBW_ARCHS_WINDOWS: "AMD64"
-          CIBW_BUILD_FRONTEND: "pip; args: --no-build-isolation"
-          CIBW_BEFORE_BUILD_LINUX: >
-            pip install setuptools wheel &&
-            curl -L https://ziglang.org/download/0.15.2/zig-$(uname -m)-linux-0.15.2.tar.xz | tar -xJ &&
-            ./zig-$(uname -m)-linux-0.15.2/zig build -Doptimize=ReleaseFast --build-file {project}/fastjsondiff/_zig/build.zig &&
-            cp {project}/fastjsondiff/_zig/zig-out/lib/libfastjsondiff_core.so {project}/fastjsondiff/
-          CIBW_BEFORE_BUILD_MACOS: >
-            pip install setuptools wheel &&
-            ARCH=$(uname -m) && if [ "$ARCH" = "arm64" ]; then ARCH="aarch64"; fi &&
-            curl -L https://ziglang.org/download/0.15.2/zig-${ARCH}-macos-0.15.2.tar.xz | tar -xJ &&
-            ./zig-${ARCH}-macos-0.15.2/zig build --build-file {project}/fastjsondiff/_zig/build.zig &&
-            cp {project}/fastjsondiff/_zig/zig-out/lib/libfastjsondiff_core.dylib {project}/fastjsondiff/
-          CIBW_BEFORE_BUILD_WINDOWS: >
-            pip install setuptools wheel &&
-            curl -L -o zig.zip https://ziglang.org/download/0.15.2/zig-x86_64-windows-0.15.2.zip &&
-            unzip zig.zip &&
-            zig-x86_64-windows-0.15.2\\zig.exe build --build-file {project}\\fastjsondiff\\_zig\\build.zig &&
-            copy {project}\\fastjsondiff\\_zig\\zig-out\\bin\\fastjsondiff_core.dll {project}\\fastjsondiff\\
+      - name: Copy library to package directory (macOS)
+        if: runner.os == 'macOS'
+        run: cp fastjsondiff/_zig/zig-out/lib/libfastjsondiff_core.dylib fastjsondiff/
 
-      - name: Upload wheel artifacts
-        uses: actions/upload-artifact@v6.0.0
+      - name: Copy library to package directory (Windows)
+        if: runner.os == 'Windows'
+        run: copy fastjsondiff\_zig\zig-out\bin\fastjsondiff_core.dll fastjsondiff\
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          name: wheels-${{ matrix.os }}
-          path: ./wheelhouse/*.whl
+          python-version: "3.12"
+
+      - name: Build wheel
+        run: pipx run build --wheel
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.os }}
+          path: dist/*.whl
 
   build_sdist:
     name: Build source distribution
@@ -116,16 +112,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2.2.0
+        with:
+          version: 0.15.2
+
+      - name: Build Zig library
+        working-directory: fastjsondiff/_zig
+        run: zig build -Doptimize=ReleaseFast
+
+      - name: Copy library to package directory
+        run: cp fastjsondiff/_zig/zig-out/lib/libfastjsondiff_core.so fastjsondiff/
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Install build tools
-        run: pip install build
-
       - name: Build sdist
-        run: python -m build --sdist
+        run: pipx run build --sdist
 
       - name: Upload sdist artifact
         uses: actions/upload-artifact@v4
@@ -146,7 +151,7 @@ jobs:
       - name: Download wheel artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: wheels-*
+          pattern: wheel-*
           path: dist
           merge-multiple: true
 
@@ -174,7 +179,7 @@ jobs:
       - name: Download wheel artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: wheels-*
+          pattern: wheel-*
           path: dist
           merge-multiple: true
 

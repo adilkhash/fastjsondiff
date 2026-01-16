@@ -84,17 +84,17 @@ jobs:
           CIBW_ARCHS_MACOS: "x86_64 arm64"
           CIBW_ARCHS_WINDOWS: "AMD64"
           CIBW_BEFORE_BUILD_LINUX: >
-            curl -L https://ziglang.org/download/0.15.2/zig-linux-$(uname -m)-0.15.2.tar.xz | tar -xJ &&
-            ./zig-linux-$(uname -m)-0.15.2/zig build -Doptimize=ReleaseFast --build-file {project}/fastjsondiff/_zig/build.zig &&
+            curl -L https://ziglang.org/download/0.15.2/zig-$(uname -m)-linux-0.15.2.tar.xz | tar -xJ &&
+            ./zig-$(uname -m)-linux-0.15.2/zig build -Doptimize=ReleaseFast --build-file {project}/fastjsondiff/_zig/build.zig &&
             cp {project}/fastjsondiff/_zig/zig-out/lib/libfastjsondiff_core.so {project}/fastjsondiff/
           CIBW_BEFORE_BUILD_MACOS: >
-            curl -L https://ziglang.org/download/0.15.2/zig-macos-$(uname -m)-0.15.2.tar.xz | tar -xJ &&
-            ./zig-macos-$(uname -m)-0.15.2/zig build --build-file {project}/fastjsondiff/_zig/build.zig &&
+            curl -L https://ziglang.org/download/0.15.2/zig-$(uname -m)-macos-0.15.2.tar.xz | tar -xJ &&
+            ./zig-$(uname -m)-macos-0.15.2/zig build --build-file {project}/fastjsondiff/_zig/build.zig &&
             cp {project}/fastjsondiff/_zig/zig-out/lib/libfastjsondiff_core.dylib {project}/fastjsondiff/
           CIBW_BEFORE_BUILD_WINDOWS: >
-            curl -L -o zig.zip https://ziglang.org/download/0.15.2/zig-windows-x86_64-0.15.2.zip &&
+            curl -L -o zig.zip https://ziglang.org/download/0.15.2/zig-x86_64-windows-0.15.2.zip &&
             unzip zig.zip &&
-            zig-windows-x86_64-0.15.2\\zig.exe build --build-file {project}\\fastjsondiff\\_zig\\build.zig &&
+            zig-x86_64-windows-0.15.2\\zig.exe build --build-file {project}\\fastjsondiff\\_zig\\build.zig &&
             copy {project}\\fastjsondiff\\_zig\\zig-out\\bin\\fastjsondiff_core.dll {project}\\fastjsondiff\\
 
       - name: Upload wheel artifacts

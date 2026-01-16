@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [master]
+    tags: ['v*']
   pull_request:
     branches: [master]
 
@@ -56,8 +57,8 @@ jobs:
       - name: Run pytest
         run: pytest
 
-  build:
-    name: Build (${{ matrix.os }})
+  build_wheels:
+    name: Build wheels (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -68,26 +69,47 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Zig
-        uses: mlugg/setup-zig@v2.2.0
-        with:
-          version: 0.15.2
-
-      - name: Build Zig library
-        working-directory: fastjsondiff/_zig
-        run: zig build
-
-      - name: Copy library to package directory (Linux)
+      - name: Setup QEMU (Linux only, for aarch64)
         if: runner.os == 'Linux'
-        run: cp fastjsondiff/_zig/zig-out/lib/libfastjsondiff_core.so fastjsondiff/
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
 
-      - name: Copy library to package directory (macOS)
-        if: runner.os == 'macOS'
-        run: cp fastjsondiff/_zig/zig-out/lib/libfastjsondiff_core.dylib fastjsondiff/
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2
+        env:
+          CIBW_BUILD: "cp311-* cp312-* cp313-* cp314-*"
+          CIBW_SKIP: "*-musllinux_*"
+          CIBW_ARCHS_LINUX: "x86_64 aarch64"
+          CIBW_ARCHS_MACOS: "x86_64 arm64"
+          CIBW_ARCHS_WINDOWS: "AMD64"
+          CIBW_BEFORE_BUILD_LINUX: >
+            curl -L https://ziglang.org/download/0.15.2/zig-linux-$(uname -m)-0.15.2.tar.xz | tar -xJ &&
+            ./zig-linux-$(uname -m)-0.15.2/zig build -Doptimize=ReleaseFast --build-file {project}/fastjsondiff/_zig/build.zig &&
+            cp {project}/fastjsondiff/_zig/zig-out/lib/libfastjsondiff_core.so {project}/fastjsondiff/
+          CIBW_BEFORE_BUILD_MACOS: >
+            curl -L https://ziglang.org/download/0.15.2/zig-macos-$(uname -m)-0.15.2.tar.xz | tar -xJ &&
+            ./zig-macos-$(uname -m)-0.15.2/zig build --build-file {project}/fastjsondiff/_zig/build.zig &&
+            cp {project}/fastjsondiff/_zig/zig-out/lib/libfastjsondiff_core.dylib {project}/fastjsondiff/
+          CIBW_BEFORE_BUILD_WINDOWS: >
+            curl -L -o zig.zip https://ziglang.org/download/0.15.2/zig-windows-x86_64-0.15.2.zip &&
+            unzip zig.zip &&
+            zig-windows-x86_64-0.15.2\\zig.exe build --build-file {project}\\fastjsondiff\\_zig\\build.zig &&
+            copy {project}\\fastjsondiff\\_zig\\zig-out\\bin\\fastjsondiff_core.dll {project}\\fastjsondiff\\
 
-      - name: Copy library to package directory (Windows)
-        if: runner.os == 'Windows'
-        run: copy fastjsondiff\_zig\zig-out\bin\fastjsondiff_core.dll fastjsondiff\
+      - name: Upload wheel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}
+          path: ./wheelhouse/*.whl
+
+  build_sdist:
+    name: Build source distribution
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -97,36 +119,65 @@ jobs:
       - name: Install build tools
         run: pip install build
 
-      - name: Build wheel
-        run: python -m build
+      - name: Build sdist
+        run: python -m build --sdist
 
-      - name: Verify library in wheel (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          unzip -l dist/*.whl | grep libfastjsondiff_core.so
-          echo "Library found in wheel"
-
-      - name: Verify library in wheel (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          unzip -l dist/*.whl | grep libfastjsondiff_core.dylib
-          echo "Library found in wheel"
-
-      - name: Verify library in wheel (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $wheel = Get-ChildItem dist/*.whl | Select-Object -First 1
-          $contents = python -c "import zipfile; print('\n'.join(zipfile.ZipFile('$($wheel.FullName)').namelist()))"
-          if ($contents -match "fastjsondiff_core.dll") {
-            Write-Host "Library found in wheel"
-          } else {
-            Write-Error "Library NOT found in wheel"
-            exit 1
-          }
-
-      - name: Upload wheel artifact
+      - name: Upload sdist artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wheel-${{ matrix.os }}
-          path: dist/*.whl
+          name: sdist
+          path: dist/*.tar.gz
+
+  publish-testpypi:
+    name: Publish to TestPyPI
+    needs: [test, build_wheels, build_sdist]
+    if: startsWith(github.ref, 'refs/tags/v') && contains(github.ref, '-')
+    runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          path: dist
+          merge-multiple: true
+
+      - name: Download sdist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sdist
+          path: dist
+
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs: [test, build_wheels, build_sdist]
+    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-')
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          path: dist
+          merge-multiple: true
+
+      - name: Download sdist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sdist
+          path: dist
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

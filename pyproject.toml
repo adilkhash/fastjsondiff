@@ -3,7 +3,7 @@ name = "fastjsondiff"
 version = "0.1.0"
 description = "High-performance JSON comparison library with Zig-powered core"
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 authors = [
     {name = "Adylzhan Khashtamov", email = "adil.khashtamov@gmail.com"}
 ]

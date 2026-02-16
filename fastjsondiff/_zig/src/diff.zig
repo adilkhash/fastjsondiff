@@ -17,6 +17,7 @@ pub fn compareValues(
     b: JsonValue,
     path: []const u8,
     depth: u32,
+    path_index: i64,
 ) CompareError!void {
     // Update metadata
     result.metadata.paths_compared += 1;
@@ -27,7 +28,7 @@ pub fn compareValues(
     // Check if types differ
     if (@intFromEnum(a) != @intFromEnum(b)) {
         // Type mismatch - record as change
-        try recordChange(result, path, a, b);
+        try recordChange(result, path, path_index, a, b);
         return;
     }
 
@@ -39,31 +40,31 @@ pub fn compareValues(
         .bool => |bool_a| {
             const bool_b = b.bool;
             if (bool_a != bool_b) {
-                try recordChange(result, path, a, b);
+                try recordChange(result, path, path_index, a, b);
             }
         },
         .integer => |int_a| {
             const int_b = b.integer;
             if (int_a != int_b) {
-                try recordChange(result, path, a, b);
+                try recordChange(result, path, path_index, a, b);
             }
         },
         .float => |float_a| {
             const float_b = b.float;
             if (float_a != float_b) {
-                try recordChange(result, path, a, b);
+                try recordChange(result, path, path_index, a, b);
             }
         },
         .number_string => |num_a| {
             const num_b = b.number_string;
             if (!std.mem.eql(u8, num_a, num_b)) {
-                try recordChange(result, path, a, b);
+                try recordChange(result, path, path_index, a, b);
             }
         },
         .string => |str_a| {
             const str_b = b.string;
             if (!std.mem.eql(u8, str_a, str_b)) {
-                try recordChange(result, path, a, b);
+                try recordChange(result, path, path_index, a, b);
             }
         },
         .array => |arr_a| {
@@ -72,7 +73,7 @@ pub fn compareValues(
         },
         .object => |obj_a| {
             const obj_b = b.object;
-            try compareObjects(result, obj_a, obj_b, path, depth);
+            try compareObjects(result, obj_a, obj_b, path, depth, path_index);
         },
     }
 }
@@ -96,13 +97,13 @@ fn compareArrays(
 
         if (i < arr_a.len and i < arr_b.len) {
             // Both have element at this index
-            try compareValues(result, arr_a[i], arr_b[i], index_path, depth + 1);
+            try compareValues(result, arr_a[i], arr_b[i], index_path, depth + 1, @intCast(i));
         } else if (i < arr_a.len) {
             // Element removed (only in A)
-            try recordRemoved(result, index_path, arr_a[i]);
+            try recordRemoved(result, index_path, @intCast(i), arr_a[i]);
         } else {
             // Element added (only in B)
-            try recordAdded(result, index_path, arr_b[i]);
+            try recordAdded(result, index_path, @intCast(i), arr_b[i]);
         }
     }
 }
@@ -114,6 +115,7 @@ fn compareObjects(
     obj_b: std.json.ObjectMap,
     path: []const u8,
     depth: u32,
+    path_index: i64,
 ) CompareError!void {
     const allocator = result.arena.allocator();
 
@@ -127,10 +129,10 @@ fn compareObjects(
 
         if (obj_b.get(key)) |value_b| {
             // Key exists in both
-            try compareValues(result, entry.value_ptr.*, value_b, key_path, depth + 1);
+            try compareValues(result, entry.value_ptr.*, value_b, key_path, depth + 1, path_index);
         } else {
             // Key removed (only in A)
-            try recordRemoved(result, key_path, entry.value_ptr.*);
+            try recordRemoved(result, key_path, -1, entry.value_ptr.*);
         }
     }
 
@@ -142,7 +144,7 @@ fn compareObjects(
             const key_path = buildKeyPath(allocator, path, key) catch {
                 return error.OutOfMemory;
             };
-            try recordAdded(result, key_path, entry.value_ptr.*);
+            try recordAdded(result, key_path, -1, entry.value_ptr.*);
         }
     }
 }
@@ -154,7 +156,7 @@ fn buildKeyPath(allocator: std.mem.Allocator, path: []const u8, key: []const u8)
 }
 
 /// Record a changed value.
-fn recordChange(result: *FjdResult, path: []const u8, old: JsonValue, new: JsonValue) CompareError!void {
+fn recordChange(result: *FjdResult, path: []const u8, path_index: i64, old: JsonValue, new: JsonValue) CompareError!void {
     const allocator = result.arena.allocator();
 
     const old_str = json_mod.stringify(old, allocator) catch {
@@ -169,6 +171,7 @@ fn recordChange(result: *FjdResult, path: []const u8, old: JsonValue, new: JsonV
 
     result.addDifference(.{
         .diff_type = DiffType.CHANGED,
+        .path_index = path_index,
         .path = path_copy,
         .old_value = old_str,
         .new_value = new_str,
@@ -178,7 +181,7 @@ fn recordChange(result: *FjdResult, path: []const u8, old: JsonValue, new: JsonV
 }
 
 /// Record an added value.
-fn recordAdded(result: *FjdResult, path: []const u8, value: JsonValue) CompareError!void {
+fn recordAdded(result: *FjdResult, path: []const u8, path_index: i64, value: JsonValue) CompareError!void {
     const allocator = result.arena.allocator();
 
     const value_str = json_mod.stringify(value, allocator) catch {
@@ -190,6 +193,7 @@ fn recordAdded(result: *FjdResult, path: []const u8, value: JsonValue) CompareEr
 
     result.addDifference(.{
         .diff_type = DiffType.ADDED,
+        .path_index = path_index,
         .path = path_copy,
         .old_value = null,
         .new_value = value_str,
@@ -199,7 +203,7 @@ fn recordAdded(result: *FjdResult, path: []const u8, value: JsonValue) CompareEr
 }
 
 /// Record a removed value.
-fn recordRemoved(result: *FjdResult, path: []const u8, value: JsonValue) CompareError!void {
+fn recordRemoved(result: *FjdResult, path: []const u8, path_index: i64, value: JsonValue) CompareError!void {
     const allocator = result.arena.allocator();
 
     const value_str = json_mod.stringify(value, allocator) catch {
@@ -211,6 +215,7 @@ fn recordRemoved(result: *FjdResult, path: []const u8, value: JsonValue) Compare
 
     result.addDifference(.{
         .diff_type = DiffType.REMOVED,
+        .path_index = path_index,
         .path = path_copy,
         .old_value = value_str,
         .new_value = null,
@@ -229,7 +234,7 @@ test "compare identical objects" {
     var result = FjdResult.init(std.testing.allocator);
         defer result.deinit();
 
-    try compareValues(&result, a, b, "root", 0);
+    try compareValues(&result, a, b, "root", 0, -1);
     try std.testing.expectEqual(@as(usize, 0), result.count());
 }
 
@@ -243,7 +248,7 @@ test "detect changed value" {
     var result = FjdResult.init(std.testing.allocator);
         defer result.deinit();
 
-    try compareValues(&result, a, b, "root", 0);
+    try compareValues(&result, a, b, "root", 0, -1);
     try std.testing.expectEqual(@as(usize, 1), result.count());
     try std.testing.expectEqual(@as(u32, 1), result.summary.changed);
 }
@@ -258,7 +263,7 @@ test "detect added key" {
     var result = FjdResult.init(std.testing.allocator);
         defer result.deinit();
 
-    try compareValues(&result, a, b, "root", 0);
+    try compareValues(&result, a, b, "root", 0, -1);
     try std.testing.expectEqual(@as(usize, 1), result.count());
     try std.testing.expectEqual(@as(u32, 1), result.summary.added);
 }
@@ -273,7 +278,7 @@ test "detect removed key" {
     var result = FjdResult.init(std.testing.allocator);
         defer result.deinit();
 
-    try compareValues(&result, a, b, "root", 0);
+    try compareValues(&result, a, b, "root", 0, -1);
     try std.testing.expectEqual(@as(usize, 1), result.count());
     try std.testing.expectEqual(@as(u32, 1), result.summary.removed);
 }
@@ -288,7 +293,37 @@ test "compare arrays" {
     var result = FjdResult.init(std.testing.allocator);
         defer result.deinit();
 
-    try compareValues(&result, a, b, "root", 0);
+    try compareValues(&result, a, b, "root", 0, -1);
     try std.testing.expectEqual(@as(usize, 1), result.count());
     try std.testing.expectEqual(@as(u32, 1), result.summary.changed);
+}
+
+test "array comparison sets path_index" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+
+    const a = try json_mod.parseJson("[1,2,3]", arena.allocator());
+    const b = try json_mod.parseJson("[1,99,3]", arena.allocator());
+
+    var result = FjdResult.init(std.testing.allocator);
+    defer result.deinit();
+
+    try compareValues(&result, a, b, "root", 0, -1);
+    try std.testing.expectEqual(@as(usize, 1), result.count());
+    try std.testing.expectEqual(@as(i64, 1), result.differences_items[0].path_index);
+}
+
+test "object comparison sets path_index to -1" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+
+    const a = try json_mod.parseJson("{\"a\":1}", arena.allocator());
+    const b = try json_mod.parseJson("{\"a\":2}", arena.allocator());
+
+    var result = FjdResult.init(std.testing.allocator);
+    defer result.deinit();
+
+    try compareValues(&result, a, b, "root", 0, -1);
+    try std.testing.expectEqual(@as(usize, 1), result.count());
+    try std.testing.expectEqual(@as(i64, -1), result.differences_items[0].path_index);
 }

@@ -168,6 +168,7 @@ def compare(a, b, *, array_match="index"):
             differences.append(Difference(
                 type=diff_type,
                 path=path,
+                index=diff_c.path_index,
                 old_value=old_value,
                 new_value=new_value,
             ))

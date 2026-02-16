@@ -69,7 +69,7 @@ pub export fn fjd_compare(
     };
 
     // Perform diff
-    diff_mod.compareValues(result_ptr, parsed_a, parsed_b, "root", 0) catch |err| {
+    diff_mod.compareValues(result_ptr, parsed_a, parsed_b, "root", 0, -1) catch |err| {
         result_ptr.deinit();
         memory.global_allocator.destroy(result_ptr);
         result_out.* = null;

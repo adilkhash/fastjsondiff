@@ -32,6 +32,10 @@ class Difference:
     path: str
     """JSON path to the difference location (e.g., 'root.items[0].name')."""
 
+    index: int = -1
+    """Array index used in path construction, or -1 for non-array contexts.
+    For nested arrays, stores the innermost index (e.g., 2 from root[0][1][2])."""
+
     old_value: t.Any = None
     """Previous value (None for 'added' type)."""
 
@@ -43,6 +47,7 @@ class Difference:
         result = {
             "type": self.type.value,
             "path": self.path,
+            "index": self.index,
         }
         if self.old_value is not None:
             result["old_value"] = self.old_value
@@ -51,7 +56,7 @@ class Difference:
         return result
 
     def __repr__(self) -> str:
-        parts = [f"type={self.type.value!r}", f"path={self.path!r}"]
+        parts = [f"type={self.type.value!r}", f"path={self.path!r}", f"index={self.index!r}"]
         if self.old_value is not None:
             parts.append(f"old_value={self.old_value!r}")
         if self.new_value is not None:

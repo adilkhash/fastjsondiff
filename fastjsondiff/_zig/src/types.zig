@@ -30,6 +30,8 @@ pub const FjdDiff = extern struct {
     diff_type: u8,
     /// Padding for alignment
     _pad: [7]u8 = [_]u8{0} ** 7,
+    /// Array index used in path construction, or -1 for non-array contexts
+    path_index: i64,
     /// JSON path (null-terminated UTF-8)
     path: [*:0]const u8,
     /// Old value as JSON string (null for added)
@@ -48,6 +50,7 @@ pub const DiffType = struct {
 /// Internal difference representation with owned strings.
 pub const Difference = struct {
     diff_type: u8,
+    path_index: i64,
     path: []const u8,
     old_value: ?[]const u8,
     new_value: ?[]const u8,
@@ -68,6 +71,7 @@ pub const Difference = struct {
 
         return FjdDiff{
             .diff_type = self.diff_type,
+            .path_index = self.path_index,
             .path = path_z,
             .old_value = old_z,
             .new_value = new_z,
@@ -173,6 +177,7 @@ test "FjdResult basic operations" {
 
     try result.addDifference(.{
         .diff_type = DiffType.ADDED,
+        .path_index = -1,
         .path = "root.test",
         .old_value = null,
         .new_value = "value",

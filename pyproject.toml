@@ -1,6 +1,6 @@
 [project]
 name = "fastjsondiff-zig"
-version = "26.1"
+version = "26.2"
 description = "High-performance JSON comparison library with Zig-powered core"
 readme = "README.md"
 license = "MIT"

@@ -6,10 +6,10 @@ provides Python bindings to the C ABI functions exported by the core.
 """
 
 import ctypes
-import os
 import sys
 from pathlib import Path
 from typing import Optional
+
 
 # FFI type definitions matching Zig structs
 class FjdOptions(ctypes.Structure):
@@ -45,6 +45,7 @@ class FjdDiff(ctypes.Structure):
     _fields_ = [
         ("diff_type", ctypes.c_uint8),
         ("_pad", ctypes.c_uint8 * 7),
+        ("path_index", ctypes.c_int64),
         ("path", ctypes.c_char_p),
         ("old_value", ctypes.c_char_p),
         ("new_value", ctypes.c_char_p),

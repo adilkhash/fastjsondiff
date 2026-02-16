@@ -332,3 +332,66 @@ class TestResultObject:
         import json
         data = json.loads(json_str)
         assert "differences" in data
+
+
+class TestPathIndex:
+    """Tests for path_index field in differences."""
+
+    def test_array_index_populated(self):
+        """Array differences should have path_index set to the array index."""
+        result = fastjsondiff.compare('[1, 2, 3]', '[1, 99, 3]')
+        assert len(result) == 1
+        assert result[0].index == 1  # Changed at array index 1
+        assert result[0].path == "root[1]"
+
+    def test_array_added_element_index(self):
+        """Added array elements should have path_index set to the array index."""
+        result = fastjsondiff.compare('[1, 2]', '[1, 2, 3]')
+        assert len(result) == 1
+        assert result[0].index == 2  # Added at array index 2
+        assert result[0].path == "root[2]"
+
+    def test_array_removed_element_index(self):
+        """Removed array elements should have path_index set to the array index."""
+        result = fastjsondiff.compare('[1, 2, 3]', '[1, 2]')
+        assert len(result) == 1
+        assert result[0].index == 2  # Removed from array index 2
+        assert result[0].path == "root[2]"
+
+    def test_object_index_is_negative_one(self):
+        """Object key differences should have path_index set to -1."""
+        result = fastjsondiff.compare('{"a": 1}', '{"a": 2}')
+        assert len(result) == 1
+        assert result[0].index == -1  # Object key, not array
+        assert result[0].path == "root.a"
+
+    def test_nested_array_innermost_index(self):
+        """Nested array differences should store the innermost index."""
+        result = fastjsondiff.compare('[[1, 2], [3, 4]]', '[[1, 2], [3, 99]]')
+        assert len(result) == 1
+        assert result[0].index == 1  # Innermost index from [3, 99]
+        assert result[0].path == "root[1][1]"
+
+    def test_object_in_array_has_object_index(self):
+        """Object keys inside arrays should have path_index -1 (innermost is key)."""
+        result = fastjsondiff.compare(
+            '[{"id": 1}, {"id": 2}]',
+            '[{"id": 1}, {"id": 99}]'
+        )
+        assert len(result) == 1
+        assert result[0].index == -1  # Innermost path component is .id (object key)
+        assert result[0].path == "root[1].id"
+
+    def test_added_object_key_negative_one(self):
+        """Added object keys should have path_index -1."""
+        result = fastjsondiff.compare('{}', '{"new_key": "value"}')
+        assert len(result) == 1
+        assert result[0].index == -1
+        assert result[0].type == DiffType.ADDED
+
+    def test_removed_object_key_negative_one(self):
+        """Removed object keys should have path_index -1."""
+        result = fastjsondiff.compare('{"old_key": "value"}', '{}')
+        assert len(result) == 1
+        assert result[0].index == -1
+        assert result[0].type == DiffType.REMOVED
